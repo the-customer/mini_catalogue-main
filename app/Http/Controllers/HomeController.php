@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Category;
+use App\Models\Product;
 use Illuminate\Http\Request;
 
 class HomeController extends Controller
@@ -9,12 +11,20 @@ class HomeController extends Controller
     public function index()
 
     {
-        $products = collect(config('catalog.products'));
-        # collect permet de transformer un tableau en collection, ce qui facilite la manipulation des données.
-        $featuredProducts = $products->where('featured', true)->take(6)->values();
-        
-        return view('app' , [
-            'products' => $featuredProducts
+        $featured = Product::query()
+            ->with('category')
+            ->where('featured',true)
+            ->orderBy('id')
+            ->take(6)
+            ->get();
+
+        $categories = Category::query()
+            ->orderBy('name')
+            ->get();
+
+        return view('app',[
+            'products' => $featured,
+            'categories'=> $categories
         ]);
     }
 }

@@ -2,29 +2,47 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Product;
 use Illuminate\Http\Request;
+
+
+
+
 
 class CartController extends Controller
 {
-    function index(){
+    function index(Request $request){
         $cart = session('cart',[]); // [id => qty]
-        $products = config('catalog.products')->keyBy('id');
+        $products = Product::query()
+            ->whereIn('id',array_keys($cart))
+            ->get()
+            ->keyBy('id');
+        $items = collect();
+        $cleanCart = [];
 
-        $items = collect($cart)->map(function($qty,$id) use ($products){
-            $p = $products->get((int)$id);
-            if(!$p) return null;
+        foreach ($cart as $id => $quantity) {
+            $product = $products->get((int)$id);
+            $quantity = (int) $quantity;
 
-            return (object)[
-                "id" => $p->id,
-                "name" => $p->name,
-                "price" => $p->price,
-                "image" => $p->image,
-                "qty" => $qty,
-                "subtotal" => $qty * $p->price
-            ];
-        });
+            if(!$product || $quantity < 1){
+                continue;
+            }
 
-        $total = $items->sum("subtotal");
+            $cleanCart[$product->id] = $quantity;
+
+            $items->push((object)[
+                'id'        => $product->id,
+                'name'      => $product->name,
+                'price'     => $product->price,
+                'image'     => $product->image,
+                'qty'       => $product->quantity,
+                'subtotal'  => $product->price * $quantity
+            ]);
+        }
+
+        $request->session()->put('cart',$cleanCart);
+
+        $total = $items->sum('subtotal');
 
         return view("cart.index",compact('total','items'));
     }
